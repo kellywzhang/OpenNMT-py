@@ -16,7 +16,7 @@ from onmt.modules.Embeddings import Embeddings, PositionalEncoding
 from onmt.modules.WeightNorm import WeightNormConv2d
 
 from onmt.Models import EncoderBase, MeanEncoder, StdRNNDecoder, \
-    RNNDecoderBase, InputFeedRNNDecoder, RNNEncoder, NMTModel
+    RNNDecoderBase, InputFeedRNNDecoder, RNNEncoder, NMTModel, LMRNNDecoder
 
 from onmt.modules.SRU import check_sru_requirement
 can_use_sru = check_sru_requirement()
@@ -26,7 +26,7 @@ if can_use_sru:
 
 # For flake8 compatibility.
 __all__ = [EncoderBase, MeanEncoder, RNNDecoderBase, InputFeedRNNDecoder,
-           RNNEncoder, NMTModel,
+           RNNEncoder, NMTModel, LMRNNDecoder,
            StdRNNDecoder, ContextGate, GlobalAttention, ImageEncoder,
            PositionwiseFeedForward, PositionalEncoding,
            CopyGenerator, MultiHeadedAttention,

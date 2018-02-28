@@ -239,7 +239,7 @@ class RNNDecoderBase(nn.Module):
                  hidden_size, attn_type="general",
                  coverage_attn=False, context_gate=None,
                  copy_attn=False, dropout=0.0, embeddings=None,
-                 reuse_copy_attn=False):
+                 reuse_copy_attn=False, input_feed=False):
         super(RNNDecoderBase, self).__init__()
 
         # Basic attributes.
@@ -249,6 +249,7 @@ class RNNDecoderBase(nn.Module):
         self.hidden_size = hidden_size
         self.embeddings = embeddings
         self.dropout = nn.Dropout(dropout)
+        self.input_feed = input_feed
 
         # Build the RNN.
         self.rnn = self._build_rnn(rnn_type,
@@ -540,6 +541,89 @@ class InputFeedRNNDecoder(RNNDecoderBase):
         Using input feed by concatenating input with attention vectors.
         """
         return self.embeddings.embedding_size + self.hidden_size
+
+
+class LMRNNDecoder(RNNDecoderBase):
+    """
+    Standard fully batched RNN decoder with attention.
+    Faster implementation, uses CuDNN for implementation.
+    See :obj:`RNNDecoderBase` for options.
+
+
+    Based around the approach from
+    "Neural Machine Translation By Jointly Learning To Align and Translate"
+    :cite:`Bahdanau2015`
+
+
+    Implemented without input_feeding and currently with no `coverage_attn`
+    or `copy_attn` support.
+    """
+    def _run_forward_pass(self, tgt, memory_bank, state, memory_lengths=None):
+        """
+        Private helper for running the specific RNN forward pass.
+        Must be overriden by all subclasses.
+        Args:
+            tgt (LongTensor): a sequence of input tokens tensors
+                                 [len x batch x nfeats].
+            memory_bank (FloatTensor): output(tensor sequence) from the encoder
+                        RNN of size (src_len x batch x hidden_size).
+            state (FloatTensor): hidden state from the encoder RNN for
+                                 initializing the decoder.
+            memory_lengths (LongTensor): the source memory_bank lengths.
+        Returns:
+            decoder_final (Variable): final hidden state from the decoder.
+            decoder_outputs ([FloatTensor]): an array of output of every time
+                                     step from the decoder.
+            attns (dict of (str, [FloatTensor]): a dictionary of different
+                            type of attention Tensor array of every time
+                            step from the decoder. Empty list.
+        """
+        assert not self._copy  # TODO, no support yet.
+        assert not self._coverage  # TODO, no support yet.
+
+        # Initialize local and return variables.
+        #attns = {}
+        emb = self.embeddings(tgt)
+
+        if self.input_feed:
+            # Additional args check.
+            input_feed = state.input_feed.squeeze(0)
+            input_feed_batch, input_feed_dim = input_feed.size()
+            tgt_len, tgt_batch, _ = tgt.size()
+            aeq(tgt_batch, input_feed_batch)
+            # END Additional args check.
+            
+            seq_input_feed = input_feed.unsqueeze(0).expand(tgt_len, input_feed_batch, input_feed_dim)
+            emb = torch.cat([emb, seq_input_feed], dim=2)
+
+        # Run the forward pass of the RNN.
+        if isinstance(self.rnn, nn.GRU):
+            rnn_output, decoder_final = self.rnn(emb, state.hidden[0])
+        else:
+            rnn_output, decoder_final = self.rnn(emb, state.hidden)
+
+        # Check
+        tgt_len, tgt_batch, _ = tgt.size()
+        output_len, output_batch, _ = rnn_output.size()
+        aeq(tgt_len, output_len)
+        aeq(tgt_batch, output_batch)
+        # END
+
+        # state, decoder memory bank, attns
+        return decoder_final, rnn_output, [] 
+
+    def _build_rnn(self, rnn_type, **kwargs):
+        rnn, _ = rnn_factory(rnn_type, **kwargs)
+        return rnn
+
+    @property
+    def _input_size(self):
+        """
+        Private helper returning the number of expected features.
+        """
+        if self.input_feed:
+            return self.embeddings.embedding_size + self.hidden_size
+        return self.embeddings.embedding_size
 
 
 class NMTModel(nn.Module):

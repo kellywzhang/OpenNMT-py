@@ -64,7 +64,7 @@ class GlobalAttention(nn.Module):
 
         self.dim = dim
         self.attn_type = attn_type
-        assert (self.attn_type in ["dot", "general", "mlp"]), (
+        assert (self.attn_type in ["dot", "general", "mlp", "none"]), (
                 "Please select a valid attention type.")
 
         if self.attn_type == "general":
@@ -73,6 +73,8 @@ class GlobalAttention(nn.Module):
             self.linear_context = BottleLinear(dim, dim, bias=False)
             self.linear_query = nn.Linear(dim, dim, bias=True)
             self.v = BottleLinear(dim, 1, bias=False)
+        elif self.attn_type == "none":
+            return
         # mlp wants it with bias
         out_bias = self.attn_type == "mlp"
         self.linear_out = nn.Linear(dim*2, dim, bias=out_bias)
@@ -142,6 +144,9 @@ class GlobalAttention(nn.Module):
           * Attention distribtutions for each query
              `[tgt_len x batch x src_len]`
         """
+
+        if self.attn_type == "none":
+            return None, None
 
         # one step input
         if input.dim() == 2:
