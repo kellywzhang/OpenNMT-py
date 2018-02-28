@@ -50,7 +50,8 @@ if torch.cuda.is_available() and not opt.gpuid:
     print("WARNING: You have a CUDA device, should run with -gpuid 0")
 
 if opt.gpuid:
-    cuda.set_device(opt.gpuid[0])
+    #cuda.set_device(opt.gpuid[0])
+    opt.gpuid = [torch.cuda.current_device()]
     if opt.seed > 0:
         torch.cuda.manual_seed(opt.seed)
 

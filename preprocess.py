@@ -169,6 +169,7 @@ def build_save_vocab(train_dataset, fields, opt):
 
 def main():
     opt = parse_args()
+    print(vars(opt))
 
     print("Extracting features...")
     src_nfeats = onmt.io.get_num_features(opt.data_type, opt.train_src, 'src')
