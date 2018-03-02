@@ -75,6 +75,7 @@ if opt.tensorboard:
     from tensorboardX import SummaryWriter
     writer = SummaryWriter(opt.tensorboard_log_dir, comment="Onmt")
 
+print(vars(opts))
 
 def report_func(epoch, batch, num_batches,
                 start_time, lr, report_stats):

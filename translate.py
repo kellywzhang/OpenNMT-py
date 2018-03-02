@@ -38,7 +38,7 @@ def _report_bleu():
         "perl tools/multi-bleu.perl %s < %s" % (opt.tgt, opt.output),
         shell=True).decode("utf-8")
     print(">> " + res.strip())
-
+    print("KELLY")
 
 def _report_rouge():
     import subprocess
@@ -55,7 +55,9 @@ def main():
 
     opt.cuda = opt.gpu > -1
     if opt.cuda:
-        torch.cuda.set_device(opt.gpu)
+        #torch.cuda.set_device(opt.gpu)
+        opt.gpu = torch.cuda.current_device()
+    print(vars(opt))
 
     # Load the model.
     fields, model, model_opt = \
@@ -127,6 +129,7 @@ def main():
     if opt.tgt:
         _report_score('GOLD', gold_score_total, gold_words_total)
         if opt.report_bleu:
+            print('bleu')
             _report_bleu()
         if opt.report_rouge:
             _report_rouge()

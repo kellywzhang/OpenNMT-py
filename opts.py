@@ -138,6 +138,8 @@ def preprocess_opts(parser):
 
     group.add_argument('-src_dir', default="",
                        help="Source directory for image or audio files.")
+    group.add_argument('-reverse_src', default=0,
+                       help="Reverse source")
 
     group.add_argument('-save_data', required=True,
                        help="Output file for the prepared data")
