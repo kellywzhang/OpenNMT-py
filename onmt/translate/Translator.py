@@ -27,7 +27,7 @@ class Translator(object):
                  beam_size, n_best=1,
                  max_length=100,
                  global_scorer=None, copy_attn=False, cuda=False,
-                 beam_trace=False, min_length=0):
+                 beam_trace=False, min_length=0, use_attn=True):
         self.model = model
         self.fields = fields
         self.n_best = n_best
@@ -37,6 +37,7 @@ class Translator(object):
         self.beam_size = beam_size
         self.cuda = cuda
         self.min_length = min_length
+        self.use_attn = use_attn
 
         # for debugging
         self.beam_accum = None
@@ -154,9 +155,15 @@ class Translator(object):
 
             # (c) Advance each beam.
             for j, b in enumerate(beam):
-                b.advance(
-                    out[:, j],
-                    unbottle(attn["std"]).data[:, j, :memory_lengths[j]])
+                if self.use_attn:
+                    b.advance(
+                        out[:, j],
+                        unbottle(attn["std"]).data[:, j, :memory_lengths[j]])
+                else:
+                    b.advance(
+                        out[:, j],
+                        None)
+
                 dec_states.beam_update(j, b.get_current_origin(), beam_size)
 
         # (4) Extract sentences from beam.

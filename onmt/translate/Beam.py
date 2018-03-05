@@ -104,8 +104,9 @@ class Beam(object):
         prev_k = best_scores_id / num_words
         self.prev_ks.append(prev_k)
         self.next_ys.append((best_scores_id - prev_k * num_words))
-        self.attn.append(attn_out.index_select(0, prev_k))
-
+        if attn_out is not None:
+            self.attn.append(attn_out.index_select(0, prev_k))
+        
         if self.global_scorer is not None:
             self.global_scorer.update_global_state(self)
 
@@ -148,9 +149,12 @@ class Beam(object):
         hyp, attn = [], []
         for j in range(len(self.prev_ks[:timestep]) - 1, -1, -1):
             hyp.append(self.next_ys[j+1][k])
-            attn.append(self.attn[j][k])
+            if len(self.attn) > 0:
+                attn.append(self.attn[j][k])
             k = self.prev_ks[j][k]
-        return hyp[::-1], torch.stack(attn[::-1])
+        if len(self.attn) > 0:
+            return hyp[::-1], torch.stack(attn[::-1])
+        return hyp[::-1], None
 
 
 class GNMTGlobalScorer(object):

@@ -215,6 +215,9 @@ def train_opts(parser):
     group.add_argument('-data', required=True,
                        help="""Path prefix to the ".train.pt" and
                        ".valid.pt" file path from preprocess.py""")
+    group.add_argument('-multitask', type=int, default=0,
+                       help="""Path prefix to the ".train.pt" and
+                       ".valid.pt" file path from preprocess.py""")
 
     group.add_argument('-save_model', default='model',
                        help="""Model filename (the model will be saved as
@@ -256,6 +259,13 @@ def train_opts(parser):
     group.add_argument('-fix_word_vecs_dec',
                        action='store_true',
                        help="Fix word embeddings on the encoder side.")
+
+    # Noise
+    group.add_argument('-pswap', default=0, type=float,
+                       help="Probability of swapping word order (source).")
+    group.add_argument('-pdrop', default=0, type=float,
+                       help="Probability of dropping word (source).")
+
 
     # Optimization options
     group = parser.add_argument_group('Optimization- Type')

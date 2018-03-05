@@ -17,7 +17,7 @@ import onmt.io
 import onmt.Models
 import onmt.ModelConstructor
 import onmt.modules
-from onmt.Utils import use_gpu
+from onmt.Utils import use_gpu, SequenceNoise
 import opts
 
 parser = argparse.ArgumentParser(
@@ -118,13 +118,15 @@ class DatasetLazyIter(object):
     """
 
     def __init__(self, datasets, fields, batch_size, batch_size_fn,
-                 device, is_train):
+                 device, is_train, data_hook=None):
         self.datasets = datasets
         self.fields = fields
         self.batch_size = batch_size
         self.batch_size_fn = batch_size_fn
         self.device = device
         self.is_train = is_train
+
+        self.data_hook = data_hook
 
         self.cur_iter = self._next_dataset_iterator(datasets)
         # We have at least one dataset.
@@ -155,7 +157,10 @@ class DatasetLazyIter(object):
 
         # We clear `fields` when saving, restore when loading.
         self.cur_dataset.fields = self.fields
-
+       
+        if self.data_hook is not None:
+            self.cur_dataset.examples = self.data_hook( self.cur_dataset.examples )
+        
         # Sort batch by decreasing lengths of sentence required by pytorch.
         # sort=False means "Use dataset's sortkey instead of iterator's".
         return onmt.io.OrderedIterator(
@@ -166,7 +171,7 @@ class DatasetLazyIter(object):
             repeat=False)
 
 
-def make_dataset_iter(datasets, fields, opt, is_train=True):
+def make_dataset_iter(datasets, fields, opt, is_train=True, data_hook=None):
     """
     This returns user-defined train/validate data iterator for the trainer
     to iterate over during each train epoch. We implement simple
@@ -182,7 +187,7 @@ def make_dataset_iter(datasets, fields, opt, is_train=True):
     device = opt.gpuid[0] if opt.gpuid else -1
 
     return DatasetLazyIter(datasets, fields, batch_size, batch_size_fn,
-                           device, is_train)
+                           device, is_train, data_hook)
 
 
 def make_loss_compute(model, tgt_vocab, opt):
@@ -227,9 +232,15 @@ def train_model(model, fields, optim, data_type, model_opt):
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
 
+        if opt.pswap + opt.pdrop > 0:
+            noiser = SequenceNoise(opt.pswap, opt.pdrop)
+            data_hook = noiser.noise_examples 
+        else:
+            data_hook = None
+
         # 1. Train for one epoch on the training set.
         train_iter = make_dataset_iter(lazily_load_dataset("train"),
-                                       fields, opt)
+                                       fields, opt, data_hook=data_hook)
         train_stats = trainer.train(train_iter, epoch, report_func)
         print('Train perplexity: %g' % train_stats.ppl())
         print('Train accuracy: %g' % train_stats.accuracy())
