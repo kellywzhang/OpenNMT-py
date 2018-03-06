@@ -110,7 +110,7 @@ class Trainer(object):
 
     def __init__(self, model, train_loss, valid_loss, optim,
                  trunc_size=0, shard_size=32, data_type='text',
-                 norm_method="sents", grad_accum_count=1):
+                 norm_method="sents", grad_accum_count=1, detach_encoder=False):
         # Basic attributes.
         self.model = model
         self.train_loss = train_loss
@@ -121,6 +121,7 @@ class Trainer(object):
         self.data_type = data_type
         self.norm_method = norm_method
         self.grad_accum_count = grad_accum_count
+        self.detach_encoder = detach_encoder
 
         assert(grad_accum_count > 0)
         if grad_accum_count > 1:
@@ -171,7 +172,8 @@ class Trainer(object):
             if accum == self.grad_accum_count:
                 self._gradient_accumulation(
                         true_batchs, total_stats,
-                        report_stats, normalization)
+                        report_stats, normalization,
+                        detach_encoder=self.detach_encoder)
 
                 if report_func is not None:
                     report_stats = report_func(
@@ -187,7 +189,8 @@ class Trainer(object):
         if len(true_batchs) > 0:
             self._gradient_accumulation(
                     true_batchs, total_stats,
-                    report_stats, normalization)
+                    report_stats, normalization,
+                    detach_encoder=self.detach_encoder)
             true_batchs = []
 
         return total_stats
@@ -267,7 +270,7 @@ class Trainer(object):
                       valid_stats.ppl(), epoch))
 
     def _gradient_accumulation(self, true_batchs, total_stats,
-                               report_stats, normalization):
+                               report_stats, normalization, detach_encoder=False):
         if self.grad_accum_count > 1:
             self.model.zero_grad()
 
@@ -297,7 +300,8 @@ class Trainer(object):
                 if self.grad_accum_count == 1:
                     self.model.zero_grad()
                 outputs, attns, dec_state = \
-                    self.model(src, tgt, src_lengths, dec_state)
+                    self.model(src, tgt, src_lengths, dec_state, \
+                               detach_encoder=detach_encoder)
 
                 # 3. Compute loss in shards for memory efficiency.
                 batch_stats = self.train_loss.sharded_compute_loss(

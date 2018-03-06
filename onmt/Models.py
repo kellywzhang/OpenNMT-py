@@ -70,6 +70,14 @@ class EncoderBase(nn.Module):
         raise NotImplementedError
 
 
+class DummyEncoder(EncoderBase):
+    """
+    Dummy encoder for language modeling.
+    """
+    def forward(self, src, lengths, encoder_state):
+        return encoder_state, None # encoder_state, memory_bank
+
+
 class MeanEncoder(EncoderBase):
     """A trivial non-recurrent encoder. Simply applies mean pooling.
 
@@ -250,6 +258,8 @@ class RNNDecoderBase(nn.Module):
         self.embeddings = embeddings
         self.dropout = nn.Dropout(dropout)
         self.input_feed = input_feed
+        self.attn_type = attn_type
+        self.rnn_type = rnn_type
 
         # Build the RNN.
         self.rnn = self._build_rnn(rnn_type,
@@ -642,7 +652,7 @@ class NMTModel(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, src, tgt, lengths, dec_state=None):
+    def forward(self, src, tgt, lengths, dec_state=None, enc_state=None, detach_encoder=False):
         """Forward propagate a `src` and `tgt` pair for training.
         Possible initialized with a beginning decoder state.
 
@@ -665,9 +675,19 @@ class NMTModel(nn.Module):
         """
         tgt = tgt[:-1]  # exclude last target from inputs
 
-        enc_final, memory_bank = self.encoder(src, lengths)
+        enc_final, memory_bank = self.encoder(src, lengths, encoder_state=enc_state)
         enc_state = \
             self.decoder.init_decoder_state(src, memory_bank, enc_final)
+        if detach_encoder:
+            if memory_bank is None:
+                memory_bank = memory_bank.detach()
+            hidden = enc_state.hidden
+            if isinstance(hidden, tuple):
+                hidden = [x.detach() for x in hidden]
+            else:
+                hidden = hidden.detach()
+            enc_state.hidden = hidden
+
         decoder_outputs, dec_state, attns = \
             self.decoder(tgt, memory_bank,
                          enc_state if dec_state is None

@@ -125,6 +125,8 @@ def model_opts(parser):
     group.add_argument('-lambda_coverage', type=float, default=1,
                        help='Lambda value for coverage.')
 
+    group.add_argument('-detach_encoder', action="store_true",
+                       help="""Don't backprop gradient into encoder""")
 
 def preprocess_opts(parser):
     # Data options
