@@ -28,6 +28,9 @@ def model_opts(parser):
                        help="""Use a sin to mark relative words positions.
                        Necessary for non-RNN style models.
                        """)
+    group.add_argument('-share_rnn', action='store_true',
+                       help="""Use shared RNN parameters for
+                       encoder and decoder.""")
 
     group = parser.add_argument_group('Model-Embedding Features')
     group.add_argument('-feat_merge', type=str, default='concat',
@@ -45,13 +48,16 @@ def model_opts(parser):
 
     # Encoder-Deocder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
+    group.add_argument('-objective', default='MT',
+                       choices=["MT", "LM"],
+                       help="""Training objective""")
     group.add_argument('-model_type', default='text',
                        help="""Type of source model to use. Allows
                        the system to incorporate non-text inputs.
                        Options are [text|img|audio].""")
 
     group.add_argument('-encoder_type', type=str, default='rnn',
-                       choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn'],
+                       choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'dummy'],
                        help="""Type of encoder layer to use. Non-RNN layers
                        are experimental. Options are
                        [rnn|brnn|mean|transformer|cnn].""")

@@ -10,7 +10,8 @@ import onmt.io
 import onmt.Models
 import onmt.modules
 from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
-                        StdRNNDecoder, InputFeedRNNDecoder, LMRNNDecoder
+                        StdRNNDecoder, InputFeedRNNDecoder, LMRNNDecoder, \
+                        DummyEncoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
                          CNNEncoder, CNNDecoder, AudioEncoder
@@ -67,6 +68,8 @@ def make_encoder(opt, embeddings):
                           opt.dropout, embeddings)
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)
+    elif opt.encoder_type == "dummy":
+        return DummyEncoder()
     else:
         # "rnn" or "brnn"
         return RNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
@@ -191,6 +194,14 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
         tgt_embeddings.word_lut.weight = src_embeddings.word_lut.weight
 
     decoder = make_decoder(model_opt, tgt_embeddings)
+    if model_opt.share_rnn:
+        if model_opt.input_feed == 1:
+            raise AssertionError('Cannot share encoder and decoder weights'
+                                 'when using input feed in decoder')
+        if model_opt.src_word_vec_size != model_opt.src_word_vec_size:
+            raise AssertionError('Cannot share encoder and decoder weights'
+                                 'if embeddings are different sizes')
+        encoder.rnn = decoder.rnn
 
     # Make NMTModel(= encoder + decoder).
     model = NMTModel(encoder, decoder)
