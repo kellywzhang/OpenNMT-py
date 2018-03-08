@@ -70,14 +70,6 @@ class EncoderBase(nn.Module):
         raise NotImplementedError
 
 
-class DummyEncoder(EncoderBase):
-    """
-    Dummy encoder for language modeling.
-    """
-    def forward(self, src, lengths, encoder_state):
-        return encoder_state, None # encoder_state, memory_bank
-
-
 class MeanEncoder(EncoderBase):
     """A trivial non-recurrent encoder. Simply applies mean pooling.
 

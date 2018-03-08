@@ -222,7 +222,8 @@ def train_model(model, fields, optim, data_type, model_opt):
 
     trainer = onmt.Trainer(model, train_loss, valid_loss, optim,
                            trunc_size, shard_size, data_type,
-                           norm_method, grad_accum_count)
+                           norm_method, grad_accum_count, 
+                           detach_encoder=model_opt.detach_encoder)
 
     print('\nStart training...')
     print(' * number of epochs: %d, starting from Epoch %d' %
@@ -398,7 +399,12 @@ def main():
     else:
         checkpoint = None
         model_opt = opt
-
+    
+    if not hasattr(model_opt, 'share_rnn'):
+        model_opt.share_rnn = False
+    if not hasattr(model_opt, 'detach_encoder'):
+        model_opt.detach_encoder = False
+    
     # Peek the fisrt dataset to determine the data_type.
     # (All datasets have the same data_type).
     first_dataset = next(lazily_load_dataset("train"))
