@@ -146,7 +146,7 @@ def preprocess_opts(parser):
 
     group.add_argument('-src_dir', default="",
                        help="Source directory for image or audio files.")
-    group.add_argument('-reverse_src', default=0,
+    group.add_argument('-reverse_src', type=int, default=0,
                        help="Reverse source")
 
     group.add_argument('-save_data', required=True,
@@ -351,6 +351,8 @@ def train_opts(parser):
                        this much if (i) perplexity does not decrease on the
                        validation set or (ii) epoch has gone past
                        start_decay_at""")
+    group.add_argument('-patience', type=int, default=0,
+                       help="""Learning rate decay patience""")
     group.add_argument('-start_decay_at', type=int, default=8,
                        help="""Start decaying every epoch after and including this
                        epoch""")

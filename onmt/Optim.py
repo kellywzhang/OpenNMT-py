@@ -37,7 +37,8 @@ class Optim(object):
                  adagrad_accum=0.0,
                  decay_method=None,
                  warmup_steps=4000,
-                 model_size=None):
+                 model_size=None,
+                 patience=0):
         self.last_ppl = None
         self.lr = lr
         self.original_lr = lr
@@ -52,6 +53,8 @@ class Optim(object):
         self.decay_method = decay_method
         self.warmup_steps = warmup_steps
         self.model_size = model_size
+        self.patience = patience
+        self.patience_cnt = 0
 
     def set_parameters(self, params):
         self.params = [p for p in params if p.requires_grad]
@@ -103,8 +106,14 @@ class Optim(object):
 
         if self.start_decay_at is not None and epoch >= self.start_decay_at:
             self.start_decay = True
+        # Change from original OpenNMT option
         if self.last_ppl is not None and ppl > self.last_ppl:
-            self.start_decay = True
+            self.patience_cnt += 1
+            if self.patience_cnt > self.patience:
+                self.start_decay = True
+        else:
+            self.start_decay = False
+            self.patience_cnt = 0
 
         if self.start_decay:
             self.lr = self.lr * self.lr_decay
