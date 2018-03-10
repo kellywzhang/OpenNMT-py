@@ -273,6 +273,10 @@ def train_opts(parser):
                        help="Probability of swapping word order (source).")
     group.add_argument('-pdrop', default=0, type=float,
                        help="Probability of dropping word (source).")
+    group.add_argument('-pinsert', default=0, type=float,
+                       help="Probability of inserting word (source).")
+    group.add_argument('-gaussian', default=0, type=float,
+                       help="Standard deviation of gaussian noise")
 
 
     # Optimization options

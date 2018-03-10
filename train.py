@@ -233,8 +233,8 @@ def train_model(model, fields, optim, data_type, model_opt):
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
 
-        if opt.pswap + opt.pdrop > 0:
-            noiser = SequenceNoise(opt.pswap, opt.pdrop)
+        if opt.pswap + opt.pdrop + opt.pinsert > 0:
+            noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab)
             data_hook = noiser.noise_examples 
         else:
             data_hook = None
