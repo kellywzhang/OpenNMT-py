@@ -38,10 +38,11 @@ class SequenceNoise(object):
 
     def noise_examples(self, examples):
         for ex in examples:
-            seq = ex.src
+            seq = list(ex.src)
             if self.pdrop > 0:
                 drop_prob = np.random.binomial(1, self.pdrop, len(seq))
-                seq = [x for i, x in enumerate(seq) if drop_prob[i] != 1]
+                if sum(drop_prob) < len(seq):
+                    seq = [x for i, x in enumerate(seq) if drop_prob[i] != 1]
 
             if self.pinsert > 0:
                 insert_prob = np.random.binomial(1, self.pinsert, len(seq))
