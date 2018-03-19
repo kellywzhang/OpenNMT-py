@@ -30,11 +30,13 @@ def use_gpu(opt):
 
 
 class SequenceNoise(object):
-    def __init__(self, pswap, pdrop, pinsert, vocab):
+    def __init__(self, pswap, pdrop, pinsert, vocab, reverse_src=False):
         self.pswap = pswap
         self.pdrop = pdrop
         self.pinsert = pinsert
         self.vocab = vocab
+        self.reverse_src = reverse_src
+        self.max_vocab = len(vocab) - 1
 
     def noise_examples(self, examples):
         for ex in examples:
@@ -46,7 +48,7 @@ class SequenceNoise(object):
 
             if self.pinsert > 0:
                 insert_prob = np.random.binomial(1, self.pinsert, len(seq))
-                rand_words = [self.vocab.itos[ np.random.randint(2, len(self.vocab.itos)) ] for i in range( sum(insert_prob) )]
+                rand_words = [self.vocab.itos[ np.random.randint(2, self.max_vocab) ] for i in range( sum(insert_prob) )]
                 rcnt = 0
                 for i in range( len(seq)-1, -1, -1):
                     if insert_prob[i] == 1:
@@ -62,7 +64,10 @@ class SequenceNoise(object):
                 if len(seq) % 2 == 1:
                     nseq.append( seq[-1] )
                 seq = nseq
-            
+
+            if self.reverse_src:
+                seq.reverse()
+
             ex.src = seq
         
         return examples

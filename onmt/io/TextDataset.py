@@ -285,7 +285,7 @@ class ShardedTextCorpusIterator(object):
     into (example_dict, n_features) tuples when iterates.
     """
     def __init__(self, corpus_path, line_truncate, side, shard_size,
-                 assoc_iter=None, reverse=False):
+                 assoc_iter=None):
         """
         Args:
             corpus_path: the corpus file path.
@@ -311,7 +311,6 @@ class ShardedTextCorpusIterator(object):
         self.last_pos = 0
         self.line_index = -1
         self.eof = False
-        self.reverse = reverse
 
     def __iter__(self):
         """
@@ -383,8 +382,6 @@ class ShardedTextCorpusIterator(object):
         line = line.split()
         if self.line_truncate:
             line = line[:self.line_truncate]
-        if self.reverse:
-            line.reverse()
         words, feats, n_feats = TextDataset.extract_text_features(line)
         example_dict = {self.side: words, "indices": index}
         if feats:

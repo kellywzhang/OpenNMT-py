@@ -160,7 +160,7 @@ class DatasetLazyIter(object):
        
         if self.data_hook is not None:
             self.cur_dataset.examples = self.data_hook( self.cur_dataset.examples )
-        
+
         # Sort batch by decreasing lengths of sentence required by pytorch.
         # sort=False means "Use dataset's sortkey instead of iterator's".
         return onmt.io.OrderedIterator(
@@ -233,8 +233,8 @@ def train_model(model, fields, optim, data_type, model_opt):
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
 
-        if opt.pswap + opt.pdrop + opt.pinsert > 0:
-            noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab)
+        if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src > 0:
+            noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src)
             data_hook = noiser.noise_examples 
         else:
             data_hook = None

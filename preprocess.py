@@ -79,12 +79,10 @@ def build_save_text_dataset_in_shards(src_corpus, tgt_corpus, fields,
         print(' * divide corpus into shards and build dataset separately'
               '(shard_size = %d bytes).' % opt.max_shard_size)
 
-    print("Reverse source {}".format( bool(opt.reverse_src) ))
-
     ret_list = []
     src_iter = onmt.io.ShardedTextCorpusIterator(
                 src_corpus, opt.src_seq_length_trunc,
-                "src", opt.max_shard_size, reverse=opt.reverse_src)
+                "src", opt.max_shard_size)
     tgt_iter = onmt.io.ShardedTextCorpusIterator(
                 tgt_corpus, opt.tgt_seq_length_trunc,
                 "tgt", opt.max_shard_size,

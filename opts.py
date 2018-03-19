@@ -146,8 +146,6 @@ def preprocess_opts(parser):
 
     group.add_argument('-src_dir', default="",
                        help="Source directory for image or audio files.")
-    group.add_argument('-reverse_src', type=int, default=0,
-                       help="Reverse source")
 
     group.add_argument('-save_data', required=True,
                        help="Output file for the prepared data")
@@ -277,6 +275,8 @@ def train_opts(parser):
                        help="Probability of inserting word (source).")
     group.add_argument('-gaussian', default=0, type=float,
                        help="Standard deviation of gaussian noise")
+    group.add_argument('-reverse_src', default=0, type=int,
+                       help="Reverse source word sequence")
 
 
     # Optimization options
@@ -475,6 +475,46 @@ def translate_opts(parser):
                        help='Window stride for spectrogram in seconds')
     group.add_argument('-window', default='hamming',
                        help='Window type for spectrogram generation')
+
+
+def eval_opts(parser):
+    group = parser.add_argument_group('EvalModel')
+    group.add_argument('-model', required=True,
+                       help='Path to model .pt file')
+
+    group = parser.add_argument_group('Data')
+    group.add_argument('-data_type', default="text",
+                       help="Type of the source input. Options: [text|img].")
+
+    group.add_argument('-src',   required=True,
+                       help="""Source sequence to decode (one line per
+                       sequence)""")
+    group.add_argument('-src_dir',   default="",
+                       help='Source directory for image or audio files')
+    group.add_argument('-tgt',
+                       help='True target sequence (optional)')
+    group.add_argument('-output', default='pred.txt',
+                       help="""Path to output the predictions (each line will
+                       be the decoded sequence""")
+    group.add_argument('-report_bleu', action='store_true',
+                       help="""Report bleu score after translation,
+                       call tools/multi-bleu.perl on command line""")
+    group.add_argument('-report_rouge', action='store_true',
+                       help="""Report rouge 1/2/3/L/SU4 score after translation
+                       call tools/test_rouge.py on command line""")
+
+    group = parser.add_argument_group('Efficiency')
+    group.add_argument('-batch_size', type=int, default=30,
+                       help='Batch size')
+    group.add_argument('-epochs', type=int, default=20,
+                       help='epochs')
+    group.add_argument('-gpu', type=int, default=-1,
+                       help="Device to run on")
+    parser.add_argument("--log_interval", type=int, default=100)
+    group.add_argument('-learning_rate', type=float, default=1.0,
+                       help="""Starting learning rate.
+                       Recommended settings: sgd = 1, adagrad = 0.1,
+                       adadelta = 1, adam = 0.001""")
 
 
 def add_md_help_argument(parser):
