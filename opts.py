@@ -221,9 +221,8 @@ def train_opts(parser):
     group.add_argument('-data', required=True,
                        help="""Path prefix to the ".train.pt" and
                        ".valid.pt" file path from preprocess.py""")
-    group.add_argument('-multitask', type=int, default=0,
-                       help="""Path prefix to the ".train.pt" and
-                       ".valid.pt" file path from preprocess.py""")
+    group.add_argument('-train_portions', type=int, default=1,
+                       help="""Proportion of dataset to train on before validating""")
 
     group.add_argument('-save_model', default='model',
                        help="""Model filename (the model will be saved as
@@ -241,6 +240,8 @@ def train_opts(parser):
     group = parser.add_argument_group('Initialization')
     group.add_argument('-start_epoch', type=int, default=1,
                        help='The epoch from which to start')
+    group.add_argument('-start_portion', type=float, default=1,
+                       help='The portion of epoch from which to start')
     group.add_argument('-param_init', type=float, default=0.1,
                        help="""Parameters are initialized over uniform distribution
                        with support (-param_init, param_init).

@@ -69,7 +69,8 @@ def save_fields_to_vocab(fields):
     vocab = []
     for k, f in fields.items():
         if f is not None and 'vocab' in f.__dict__:
-            f.vocab.stoi = dict(f.vocab.stoi)
+            #import ipdb; ipdb.set_trace()
+            #f.vocab.stoi = dict(f.vocab.stoi)
             vocab.append((k, f.vocab))
     return vocab
 
