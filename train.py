@@ -247,9 +247,15 @@ def train_model(model, fields, optim, data_type, model_opt):
         print('Train accuracy: %g' % train_stats.accuracy())
 
         # 2. Validate on the validation set.
+        if opt.reverse_src > 0:
+            valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src)
+            valid_data_hook = noiser.noise_examples
+        else:
+            valid_data_hook = None
+
         valid_iter = make_dataset_iter(lazily_load_dataset("valid"),
                                        fields, opt,
-                                       is_train=False)
+                                       is_train=False, data_hook=valid_data_hook)
         valid_stats = trainer.validate(valid_iter)
         print('Validation perplexity: %g' % valid_stats.ppl())
         print('Validation accuracy: %g' % valid_stats.accuracy())
