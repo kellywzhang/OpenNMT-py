@@ -123,8 +123,8 @@ def make_decoder(opt, embeddings):
                              opt.reuse_copy_attn)
 
 
-def load_test_model(opt, dummy_opt):
-    checkpoint = torch.load(opt.model,
+def load_test_model(opt, dummy_opt, backward=False):
+    checkpoint = torch.load(opt.model if not backward else opt.backward_model,
                             map_location=lambda storage, loc: storage)
     fields = onmt.io.load_fields_from_vocab(
         checkpoint['vocab'], data_type=opt.data_type)

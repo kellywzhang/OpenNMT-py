@@ -160,10 +160,7 @@ class Trainer(object):
         pcnt = 0
         for i, batch in enumerate(train_iter):
             if batch is None:
-                pcnt += 1
-                if portions is not None and pcnt >= portions:
-                    return total_stats
-                continue
+                return total_stats
 
             cur_dataset = train_iter.get_cur_dataset()
             self.train_loss.cur_dataset = cur_dataset

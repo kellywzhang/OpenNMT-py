@@ -52,7 +52,7 @@ if opt.rnn_type == "SRU" and not opt.gpuid:
 if torch.cuda.is_available() and not opt.gpuid:
     print("WARNING: You have a CUDA device, should run with -gpuid 0")
 
-if opt.gpuid:
+if opt.gpuid[0]:
     #cuda.set_device(opt.gpuid[0])
     opt.gpuid = [torch.cuda.current_device()]
     if opt.seed > 0:
@@ -122,7 +122,7 @@ class DatasetLazyIter(object):
     """
 
     def __init__(self, datasets, fields, batch_size, batch_size_fn,
-                 device, is_train, data_hook=None, portions=1, shards=1):
+                 device, is_train, data_hook=None, portion_shards=None):
         self.datasets = datasets
         self.fields = fields
         self.batch_size = batch_size
@@ -131,22 +131,27 @@ class DatasetLazyIter(object):
         self.is_train = is_train
 
         self.data_hook = data_hook
-        self.portions = portions
-        self.shards = shards
+        self.portion_shards = portion_shards
+        self.pcnt = 0
+        self.scnt = 1
 
-        self.cur_iter = self._next_dataset_iterator(datasets)
+        self.cur_iter = '' #self._next_dataset_iterator(datasets)
         # We have at least one dataset.
         assert self.cur_iter is not None
 
     def __iter__(self):
         dataset_iter = (d for d in self.datasets)
+        self.cur_iter = self._next_dataset_iterator(dataset_iter)
         while self.cur_iter is not None:
             for batch in self.cur_iter:
                 yield batch
-            
-            self.cur_iter = self._next_dataset_iterator(dataset_iter)
-            if self.is_train:
+           
+            if self.is_train and self.portion_shards[self.pcnt] <= self.scnt:
+                self.pcnt += 1
+                self.scnt = 0
                 yield None
+            self.cur_iter = self._next_dataset_iterator(dataset_iter)
+            self.scnt += 1
             
 
     def __len__(self):
@@ -181,7 +186,8 @@ class DatasetLazyIter(object):
             repeat=False)
 
 
-def make_dataset_iter(datasets, fields, opt, is_train=True, data_hook=None, portions=1, shards=1):
+def make_dataset_iter(datasets, fields, opt, is_train=True, data_hook=None, 
+                        portion_shards=None):
     """
     This returns user-defined train/validate data iterator for the trainer
     to iterate over during each train epoch. We implement simple
@@ -197,7 +203,7 @@ def make_dataset_iter(datasets, fields, opt, is_train=True, data_hook=None, port
     device = opt.gpuid[0] if opt.gpuid else -1
 
     return DatasetLazyIter(datasets, fields, batch_size, batch_size_fn,
-                           device, is_train, data_hook, portions=portions, shards=shards)
+                           device, is_train, data_hook, portion_shards)
 
 
 def make_loss_compute(model, tgt_vocab, opt):
@@ -253,7 +259,9 @@ def train_model(model, fields, optim, data_type, model_opt):
     shards = len(sorted(glob.glob(opt.data + '.train.[0-9]*.pt')))
     size = math.ceil(shards / opt.train_portions)
     tp = opt.train_portions
-    portion_shards = [size if i < shards % tp else size-1 for i in range(tp)]
+    short = size*tp - shards
+    portion_shards = [size if i >= short else size-1 for i in range(tp)]
+    portion_shards.reverse()
     assert sum(portion_shards) == shards
 
     start_portion = opt.start_portion
@@ -266,9 +274,10 @@ def train_model(model, fields, optim, data_type, model_opt):
         print('')
 
         # 1. Train for one epoch on the training set.
+        print("Start portion: {}".format(start_portion))
         train_iter = make_dataset_iter(lazily_load_dataset("train", start_portion),
                                        fields, opt, data_hook=data_hook,
-                                       portions=opt.train_portions, shards=shards)
+                                       portion_shards=portion_shards[start_portion-1:])
         start_portion = 1
         for i, scnt in enumerate(portion_shards):
 

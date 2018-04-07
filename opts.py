@@ -482,6 +482,8 @@ def eval_opts(parser):
     group = parser.add_argument_group('EvalModel')
     group.add_argument('-model', required=True,
                        help='Path to model .pt file')
+    group.add_argument('-backward_model', default='', type=str,
+                       help='Path to backward model .pt file')
 
     group = parser.add_argument_group('Data')
     group.add_argument('-data_type', default="text",
@@ -504,6 +506,11 @@ def eval_opts(parser):
                        help="""Report rouge 1/2/3/L/SU4 score after translation
                        call tools/test_rouge.py on command line""")
 
+    group.add_argument('-reverse_src', default=0, type=int,
+                       help="Reverse source word sequence")
+    group.add_argument('-eval_layer', default=2, type=int,
+                       help="Which layer to evaluate")
+    
     group = parser.add_argument_group('Efficiency')
     group.add_argument('-batch_size', type=int, default=30,
                        help='Batch size')
