@@ -133,6 +133,8 @@ class DatasetLazyIter(object):
         self.data_hook = data_hook
         self.portion_shards = portion_shards
         self.pcnt = start_portion - 1
+        print(portion_shards)
+        print(self.pcnt)
         self.scnt = 1
 
         self.cur_iter = '' #self._next_dataset_iterator(datasets)
@@ -147,9 +149,11 @@ class DatasetLazyIter(object):
                 yield batch
 
             if self.is_train and self.portion_shards[self.pcnt] <= self.scnt:
+                print(self.portion_shards)
+                print(self.pcnt)
                 self.pcnt += 1
-                print("Starting portion {}".format(self.pcnt))
-                self.scnt = 0
+                print("Starting portion {}".format(self.pcnt+1))
+                self.scnt = 1
                 yield None
             self.cur_iter = self._next_dataset_iterator(dataset_iter)
             self.scnt += 1
@@ -269,7 +273,8 @@ def train_model(model, fields, optim, data_type, model_opt):
    
     shard_cnt = 0
     if start_portion > 1:
-        shard_cnt += opt.start_portion - 1
+        shard_cnt += opt.start_portion
+        print(shard_cnt)
         portion_idx = 0
         while opt.start_portion > sum( portion_shards[:portion_idx] ):
             portion_idx += 1
@@ -278,7 +283,7 @@ def train_model(model, fields, optim, data_type, model_opt):
         portion_idx = 1
 
     for epoch in range(opt.start_epoch, opt.epochs + 1):
-        print('')
+        print('New Epoch {}'.format(epoch))
 
         # 1. Train for one epoch on the training set.
         print("Start portion: {}".format(start_portion))
@@ -286,10 +291,9 @@ def train_model(model, fields, optim, data_type, model_opt):
                                        fields, opt, data_hook=data_hook,
                                        portion_shards=portion_shards,
                                        start_portion=portion_idx)
-        start_portion = 1
-        portion_idx = 1
-        for i, scnt in enumerate(portion_shards):
-
+        
+        for i, scnt in enumerate(portion_shards[portion_idx-1:]):
+            
             train_stats = trainer.train(train_iter, epoch, report_func, scnt)
             print('Train perplexity: %g' % train_stats.ppl())
             print('Train accuracy: %g' % train_stats.accuracy())
@@ -308,7 +312,7 @@ def train_model(model, fields, optim, data_type, model_opt):
             valid_stats = trainer.validate(valid_iter)
             print('Validation perplexity: %g' % valid_stats.ppl())
             print('Validation accuracy: %g' % valid_stats.accuracy())
-        
+       
             # 4. Update the learning rate
             trainer.epoch_step(valid_stats.ppl(), epoch)
         
@@ -317,6 +321,8 @@ def train_model(model, fields, optim, data_type, model_opt):
             if epoch >= opt.start_checkpoint_at:
                 trainer.drop_checkpoint(model_opt, epoch, fields, valid_stats, train_portion=shard_cnt)
         
+        start_portion = 1
+        portion_idx = 1
         shard_cnt = 0
         
         # 3. Log to remote server.
@@ -457,7 +463,7 @@ def main():
 
         shards = len(sorted(glob.glob(opt.data + '.train.[0-9]*.pt')))
         if 'train_portion' in checkpoint:
-            opt.start_portion = (checkpoint['train_portion'] + 1) % shards
+            opt.start_portion = (checkpoint['train_portion'] + 1) % (shards + 1)
         else:
             opt.start_portion = 1
             
@@ -465,7 +471,8 @@ def main():
             opt.start_epoch = checkpoint['epoch'] + 1
         else:
             opt.start_epoch = checkpoint['epoch']
-
+        print(opt.start_epoch, opt.start_portion)
+    
     else:
         checkpoint = None
         model_opt = opt
