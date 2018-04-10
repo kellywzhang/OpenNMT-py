@@ -122,7 +122,7 @@ class DatasetLazyIter(object):
     """
 
     def __init__(self, datasets, fields, batch_size, batch_size_fn,
-                 device, is_train, data_hook=None, portion_shards=None):
+                 device, is_train, data_hook=None, portion_shards=None, start_portion=1):
         self.datasets = datasets
         self.fields = fields
         self.batch_size = batch_size
@@ -132,7 +132,7 @@ class DatasetLazyIter(object):
 
         self.data_hook = data_hook
         self.portion_shards = portion_shards
-        self.pcnt = 0
+        self.pcnt = start_portion - 1
         self.scnt = 1
 
         self.cur_iter = '' #self._next_dataset_iterator(datasets)
@@ -145,9 +145,10 @@ class DatasetLazyIter(object):
         while self.cur_iter is not None:
             for batch in self.cur_iter:
                 yield batch
-           
+
             if self.is_train and self.portion_shards[self.pcnt] <= self.scnt:
                 self.pcnt += 1
+                print("Starting portion {}".format(self.pcnt))
                 self.scnt = 0
                 yield None
             self.cur_iter = self._next_dataset_iterator(dataset_iter)
@@ -187,7 +188,7 @@ class DatasetLazyIter(object):
 
 
 def make_dataset_iter(datasets, fields, opt, is_train=True, data_hook=None, 
-                        portion_shards=None):
+                        portion_shards=None, start_portion=1):
     """
     This returns user-defined train/validate data iterator for the trainer
     to iterate over during each train epoch. We implement simple
@@ -203,7 +204,7 @@ def make_dataset_iter(datasets, fields, opt, is_train=True, data_hook=None,
     device = opt.gpuid[0] if opt.gpuid else -1
 
     return DatasetLazyIter(datasets, fields, batch_size, batch_size_fn,
-                           device, is_train, data_hook, portion_shards)
+                           device, is_train, data_hook, portion_shards, start_portion)
 
 
 def make_loss_compute(model, tgt_vocab, opt):
@@ -269,6 +270,12 @@ def train_model(model, fields, optim, data_type, model_opt):
     shard_cnt = 0
     if start_portion > 1:
         shard_cnt += opt.start_portion - 1
+        portion_idx = 0
+        while opt.start_portion > sum( portion_shards[:portion_idx] ):
+            portion_idx += 1
+        print("Portion idx {}".format(portion_idx))
+    else:
+        portion_idx = 1
 
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
@@ -277,8 +284,10 @@ def train_model(model, fields, optim, data_type, model_opt):
         print("Start portion: {}".format(start_portion))
         train_iter = make_dataset_iter(lazily_load_dataset("train", start_portion),
                                        fields, opt, data_hook=data_hook,
-                                       portion_shards=portion_shards[start_portion-1:])
+                                       portion_shards=portion_shards,
+                                       start_portion=portion_idx)
         start_portion = 1
+        portion_idx = 1
         for i, scnt in enumerate(portion_shards):
 
             train_stats = trainer.train(train_iter, epoch, report_func, scnt)
