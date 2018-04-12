@@ -463,7 +463,7 @@ def main():
 
         shards = len(sorted(glob.glob(opt.data + '.train.[0-9]*.pt')))
         if 'train_portion' in checkpoint:
-            opt.start_portion = (checkpoint['train_portion'] + 1) % (shards + 1)
+            opt.start_portion = ( checkpoint['train_portion'] % shards ) + 1
         else:
             opt.start_portion = 1
             
