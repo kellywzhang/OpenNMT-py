@@ -510,10 +510,14 @@ def eval_opts(parser):
                        help="Reverse source word sequence")
     group.add_argument('-eval_layer', default=2, type=int,
                        help="Which layer to evaluate")
+    group.add_argument('-random_init', default=0, type=int,
+                       help="Random initialization of parameters")
+    group.add_argument('-id_word_shift', default=0, type=int,
+                       help="identity prediction word shift")
     
     group = parser.add_argument_group('Efficiency')
     group.add_argument('-batch_size', type=int, default=30,
-                       help='Batch size')
+                       help='batch size')
     group.add_argument('-epochs', type=int, default=20,
                        help='epochs')
     group.add_argument('-gpu', type=int, default=-1,
@@ -523,6 +527,8 @@ def eval_opts(parser):
                        help="""Starting learning rate.
                        Recommended settings: sgd = 1, adagrad = 0.1,
                        adadelta = 1, adam = 0.001""")
+    group.add_argument('-seed', type=int, default=1,
+                       help='random seed')
 
 
 def add_md_help_argument(parser):
