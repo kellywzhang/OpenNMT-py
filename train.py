@@ -328,9 +328,21 @@ def lazily_load_dataset(corpus_type):
 
 def load_fields(dataset, data_type, checkpoint):
     if checkpoint is not None:
-        print('Loading vocab from checkpoint at %s.' % opt.train_from)
-        fields = onmt.io.load_fields_from_vocab(
-            checkpoint['vocab'], data_type)
+        if opt.train_from:
+            print('Loading vocab from checkpoint at %s.' % opt.train_from)
+            fields = onmt.io.load_fields_from_vocab(
+                checkpoint['vocab'], data_type)
+        else:
+            print('Loading source vocab from checkpoint at %s.' % opt.init_encoder)
+            print('Loading target vocab from data at %s.' % (opt.data + '.vocab.pt'))
+            # source vocab
+            src_vocab = checkpoint['vocab'][0]
+            # target vocab
+            tgt_vocab = torch.load(opt.data + '.vocab.pt')[1]
+
+            vocab = [ src_vocab, tgt_vocab ]
+            fields = onmt.io.load_fields_from_vocab(
+                vocab, data_type)
     else:
         fields = onmt.io.load_fields_from_vocab(
             torch.load(opt.data + '.vocab.pt'), data_type)
@@ -360,7 +372,7 @@ def collect_report_features(fields):
 def build_model(model_opt, opt, fields, checkpoint):
     print('Building model...')
     model = onmt.ModelConstructor.make_base_model(model_opt, fields,
-                                                  use_gpu(opt), checkpoint)
+                                                  use_gpu(opt), checkpoint, opt.rand_decoder)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
@@ -402,6 +414,11 @@ def main():
         model_opt = checkpoint['opt']
         # I don't like reassigning attributes of opt: it's not clear.
         opt.start_epoch = checkpoint['epoch'] + 1
+    elif opt.init_encoder:
+        print('Loading initial weights from %s' % opt.init_encoder)
+        checkpoint = torch.load(opt.init_encoder,
+                                map_location=lambda storage, loc: storage)
+        model_opt = checkpoint['opt']
     else:
         checkpoint = None
         model_opt = opt
@@ -428,7 +445,10 @@ def main():
     check_save_model_path()
 
     # Build optimizer.
-    optim = build_optim(model, checkpoint)
+    if opt.train_from:
+        optim = build_optim(model, checkpoint)
+    else:
+        optim = build_optim(model, None)
 
     # Do training.
     train_model(model, fields, optim, data_type, model_opt)
