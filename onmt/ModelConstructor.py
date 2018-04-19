@@ -141,7 +141,7 @@ def load_test_model(opt, dummy_opt, backward=False):
     return fields, model, model_opt
 
 
-def make_base_model(model_opt, fields, gpu, checkpoint=None):
+def make_base_model(model_opt, fields, gpu, checkpoint=None, rand_decoder=False):
     """
     Args:
         model_opt: the option loaded from checkpoint.
@@ -233,6 +233,12 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
         if hasattr(model.decoder, 'embeddings'):
             model.decoder.embeddings.load_pretrained_vectors(
                     model_opt.pre_word_vecs_dec, model_opt.fix_word_vecs_dec)
+    if rand_decoder:
+        print("Rand decoder")
+        for p in model.decoder.parameters():
+            p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+        for p in generator.parameters():
+            p.data.uniform_(-model_opt.param_init, model_opt.param_init)
 
     # Add generator to model (this registers it as parameter of model).
     model.generator = generator

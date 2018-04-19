@@ -671,7 +671,7 @@ class NMTModel(nn.Module):
         enc_state = \
             self.decoder.init_decoder_state(src, memory_bank, enc_final)
         if detach_encoder:
-            if memory_bank is None:
+            if memory_bank is not None:
                 memory_bank = memory_bank.detach()
             hidden = enc_state.hidden
             if isinstance(hidden, tuple):

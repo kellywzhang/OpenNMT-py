@@ -519,6 +519,8 @@ def eval_opts(parser):
                        help="Random initialization of parameters")
     group.add_argument('-id_word_shift', default=0, type=int,
                        help="identity prediction word shift")
+    group.add_argument('-eval_portion', default=-1, type=int,
+                       help="portion of data to train evaluation on")
     
     group = parser.add_argument_group('Efficiency')
     group.add_argument('-batch_size', type=int, default=30,
