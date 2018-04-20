@@ -369,10 +369,10 @@ def collect_report_features(fields):
         print(' * tgt feature %d size = %d' % (j, len(fields[feat].vocab)))
 
 
-def build_model(model_opt, opt, fields, checkpoint):
+def build_model(model_opt, opt, fields, checkpoint, rev_checkpoint):
     print('Building model...')
     model = onmt.ModelConstructor.make_base_model(model_opt, fields,
-                                                  use_gpu(opt), checkpoint, opt.rand_decoder)
+                                                  use_gpu(opt), checkpoint, opt.init_encoder, rev_checkpoint)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
@@ -407,6 +407,7 @@ def build_optim(model, checkpoint):
 
 def main():
     # Load checkpoint if we resume from a previous training.
+    rev_checkpoint = None
     if opt.train_from:
         print('Loading checkpoint from %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from,
@@ -414,11 +415,14 @@ def main():
         model_opt = checkpoint['opt']
         # I don't like reassigning attributes of opt: it's not clear.
         opt.start_epoch = checkpoint['epoch'] + 1
-    elif opt.init_encoder:
+    elif opt.init_encoder != "":
         print('Loading initial weights from %s' % opt.init_encoder)
         checkpoint = torch.load(opt.init_encoder,
                                 map_location=lambda storage, loc: storage)
-        model_opt = checkpoint['opt']
+        model_opt = opt
+        if opt.init_encoder_reverse != "":
+            rev_checkpoint = torch.load(opt.init_encoder_reverse,
+                                    map_location=lambda storage, loc: storage)
     else:
         checkpoint = None
         model_opt = opt
@@ -440,7 +444,7 @@ def main():
     collect_report_features(fields)
 
     # Build model.
-    model = build_model(model_opt, opt, fields, checkpoint)
+    model = build_model(model_opt, opt, fields, checkpoint, rev_checkpoint)
     tally_parameters(model)
     check_save_model_path()
 

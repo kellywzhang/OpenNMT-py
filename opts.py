@@ -252,8 +252,9 @@ def train_opts(parser):
     group.add_argument('-init_encoder', default='', type=str,
                        help="""Initialize encoder parameters from the weights of checkpoint.
                        (Different from `-train_from` since can have different training objective)""")
-    group.add_argument('-rand_decoder', default=0, type=int,
-                       help="""Initialize decoder parameters randomonly""")
+    group.add_argument('-init_encoder_reverse', default='', type=str,
+                       help="""Initialize encoder parameters from the weights of checkpoint.
+                       (Different from `-train_from` since can have different training objective)""")
 
     # Pretrained word vectors
     group.add_argument('-pre_word_vecs_enc',

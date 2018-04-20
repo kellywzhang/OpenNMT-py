@@ -141,7 +141,7 @@ def load_test_model(opt, dummy_opt, backward=False):
     return fields, model, model_opt
 
 
-def make_base_model(model_opt, fields, gpu, checkpoint=None, rand_decoder=False):
+def make_base_model(model_opt, fields, gpu, checkpoint=None, init_encoder=False, rev_checkpoint=None):
     """
     Args:
         model_opt: the option loaded from checkpoint.
@@ -216,8 +216,8 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None, rand_decoder=False)
                                   fields["tgt"].vocab)
 
     # Load the model states from checkpoint or initialize them.
-    if checkpoint is not None:
-        print('Loading model parameters.')
+    if checkpoint is not None and not init_encoder:
+        print('Loading model parameters from checkpoint.')
         model.load_state_dict(checkpoint['model'])
         generator.load_state_dict(checkpoint['generator'])
     else:
@@ -233,12 +233,31 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None, rand_decoder=False)
         if hasattr(model.decoder, 'embeddings'):
             model.decoder.embeddings.load_pretrained_vectors(
                     model_opt.pre_word_vecs_dec, model_opt.fix_word_vecs_dec)
-    if rand_decoder:
-        print("Rand decoder")
-        for p in model.decoder.parameters():
-            p.data.uniform_(-model_opt.param_init, model_opt.param_init)
-        for p in generator.parameters():
-            p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+        if init_encoder:
+            model_dict = checkpoint['model']
+            model_dict_keys = model_dict.keys()
+            encoder_dict = {}
+            new_model_dict = model.state_dict()
+   
+            # Load encoder parameters
+            #print(encoder.rnn.weight_hh_l0)
+            #print(decoder.attn.linear_out.weight)
+            for key, value in model_dict.items():
+                if key[:7] == 'encoder':
+                    new_model_dict[key] = value
+            
+            """
+            if rev_checkpoint is not None:
+                rev_model_dict = rev_checkpoint['model']
+                if key[:7] == 'encoder' and key[8:18] != 'embeddings':
+                    new_model_dict[key+'_reverse'] = value
+            """
+            model.load_state_dict(new_model_dict)
+           
+            # Freeze encoder parameters
+            for name, param in model.named_parameters():
+                if name in model_dict_keys:
+                    param.requires_grad = False
 
     # Add generator to model (this registers it as parameter of model).
     model.generator = generator
