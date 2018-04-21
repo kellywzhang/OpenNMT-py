@@ -255,6 +255,8 @@ def train_opts(parser):
     group.add_argument('-init_encoder_reverse', default='', type=str,
                        help="""Initialize encoder parameters from the weights of checkpoint.
                        (Different from `-train_from` since can have different training objective)""")
+    group.add_argument('-top_layer', type=int, default=1,
+                       help='Top fixed layer')
 
     # Pretrained word vectors
     group.add_argument('-pre_word_vecs_enc',

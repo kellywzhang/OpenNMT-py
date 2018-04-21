@@ -141,7 +141,7 @@ def load_test_model(opt, dummy_opt, backward=False):
     return fields, model, model_opt
 
 
-def make_base_model(model_opt, fields, gpu, checkpoint=None, init_encoder=False, rev_checkpoint=None):
+def make_base_model(model_opt, fields, gpu, checkpoint=None, init_encoder=False, rev_checkpoint=None, top_layer=100):
     """
     Args:
         model_opt: the option loaded from checkpoint.
@@ -235,15 +235,24 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None, init_encoder=False,
                     model_opt.pre_word_vecs_dec, model_opt.fix_word_vecs_dec)
         if init_encoder:
             model_dict = checkpoint['model']
-            model_dict_keys = model_dict.keys()
             encoder_dict = {}
-            new_model_dict = model.state_dict()
-   
-            # Load encoder parameters
-            #print(encoder.rnn.weight_hh_l0)
-            #print(decoder.attn.linear_out.weight)
-            for key, value in model_dict.items():
+
+            model_dict_keys = []
+            for key in model_dict.keys():
                 if key[:7] == 'encoder':
+                    if key[-7:] == 'reverse':
+                        if int(key[-9]) > top_layer:
+                            continue
+                    else:
+                        if key[8:18] != 'embeddings' and int(key[-1]) > top_layer:
+                            continue
+                    model_dict_keys.append( key )
+            print(model_dict_keys)
+            
+            # Load encoder parameters
+            new_model_dict = model.state_dict()
+            for key, value in model_dict.items():
+                if key in model_dict_keys:
                     new_model_dict[key] = value
             
             """

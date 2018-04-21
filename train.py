@@ -372,7 +372,7 @@ def collect_report_features(fields):
 def build_model(model_opt, opt, fields, checkpoint, rev_checkpoint):
     print('Building model...')
     model = onmt.ModelConstructor.make_base_model(model_opt, fields,
-                                                  use_gpu(opt), checkpoint, opt.init_encoder, rev_checkpoint)
+                                                  use_gpu(opt), checkpoint, opt.init_encoder, rev_checkpoint, opt.top_layer)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
