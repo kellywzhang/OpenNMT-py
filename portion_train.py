@@ -255,8 +255,8 @@ def train_model(model, fields, optim, data_type, model_opt):
     print(' * batch size: %d' % opt.batch_size)
     print('pswap {}; pdrop {}; pinsert {}; reverse src {}'.format(opt.pswap, opt.pdrop, opt.pinsert, opt.reverse_src))
     
-    if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src > 0:
-        noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src)
+    if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src + opt.reverse_tgt > 0:
+        noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt)
         data_hook = noiser.noise_examples 
     else:
         data_hook = None
@@ -299,9 +299,9 @@ def train_model(model, fields, optim, data_type, model_opt):
             print('Train accuracy: %g' % train_stats.accuracy())
 
             # 2. Validate on the validation set.
-            if opt.reverse_src > 0:
-                valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src)
-                valid_data_hook = noiser.noise_examples 
+            if opt.reverse_src + opt.reverse_tgt > 0:
+                valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt)
+                valid_data_hook = valid_noiser.noise_examples 
             else:
                 valid_data_hook = None
             

@@ -157,7 +157,7 @@ class DatasetLazyIter(object):
 
         # We clear `fields` when saving, restore when loading.
         self.cur_dataset.fields = self.fields
-       
+      
         if self.data_hook is not None:
             self.cur_dataset.examples = self.data_hook( self.cur_dataset.examples )
 
@@ -234,7 +234,7 @@ def train_model(model, fields, optim, data_type, model_opt):
         print('')
 
         if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src > 0:
-            noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src)
+            noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt)
             data_hook = noiser.noise_examples 
         else:
             data_hook = None
@@ -248,8 +248,8 @@ def train_model(model, fields, optim, data_type, model_opt):
 
         # 2. Validate on the validation set.
         if opt.reverse_src > 0:
-            valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src)
-            valid_data_hook = noiser.noise_examples
+            valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt)
+            valid_data_hook = valid_noiser.noise_examples
         else:
             valid_data_hook = None
 

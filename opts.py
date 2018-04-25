@@ -286,6 +286,8 @@ def train_opts(parser):
                        help="Standard deviation of gaussian noise")
     group.add_argument('-reverse_src', default=0, type=int,
                        help="Reverse source word sequence")
+    group.add_argument('-reverse_tgt', default=0, type=int,
+                       help="Reverse source word sequence")
 
 
     # Optimization options
