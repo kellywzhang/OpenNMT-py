@@ -30,13 +30,15 @@ def use_gpu(opt):
 
 
 class SequenceNoise(object):
-    def __init__(self, pswap, pdrop, pinsert, vocab, reverse_src=False, reverse_tgt=False):
+    def __init__(self, pswap, pdrop, pinsert, vocab, \
+                 reverse_src=False, reverse_tgt=False, reverse_order=False):
         self.pswap = pswap
         self.pdrop = pdrop
         self.pinsert = pinsert
         self.vocab = vocab
         self.reverse_src = reverse_src
         self.reverse_tgt = reverse_tgt
+        self.reverse_order = reverse_order
         self.max_vocab = len(vocab) - 1
 
     def noise_examples(self, examples):
@@ -75,5 +77,11 @@ class SequenceNoise(object):
                 tseq = list(ex.tgt)
                 tseq.reverse()
                 ex.tgt = tseq
-        
+
+            if self.reverse_order:
+                src = ex.src
+                tgt = ex.tgt
+                ex.tgt = src
+                ex.src = tgt
+
         return examples

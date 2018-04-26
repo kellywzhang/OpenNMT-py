@@ -288,6 +288,8 @@ def train_opts(parser):
                        help="Reverse source word sequence")
     group.add_argument('-reverse_tgt', default=0, type=int,
                        help="Reverse source word sequence")
+    group.add_argument('-reverse_order', default=0, type=int,
+                       help="Reverse source word sequence")
 
 
     # Optimization options

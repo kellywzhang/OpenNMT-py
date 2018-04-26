@@ -49,7 +49,7 @@ if opt.rnn_type == "SRU" and not opt.gpuid:
 if torch.cuda.is_available() and not opt.gpuid:
     print("WARNING: You have a CUDA device, should run with -gpuid 0")
 
-if opt.gpuid[0]:
+if opt.gpuid:
     #cuda.set_device(opt.gpuid[0])
     opt.gpuid = [torch.cuda.current_device()]
     if opt.seed > 0:
@@ -135,9 +135,12 @@ class DatasetLazyIter(object):
     def __iter__(self):
         dataset_iter = (d for d in self.datasets)
         while self.cur_iter is not None:
-            for batch in self.cur_iter:
-                yield batch
-            self.cur_iter = self._next_dataset_iterator(dataset_iter)
+            try:
+                for batch in self.cur_iter:
+                    yield batch
+                self.cur_iter = self._next_dataset_iterator(dataset_iter)
+            except:
+                import pdb; pdb.set_trace()
 
     def __len__(self):
         # We return the len of cur_dataset, otherwise we need to load
@@ -157,7 +160,7 @@ class DatasetLazyIter(object):
 
         # We clear `fields` when saving, restore when loading.
         self.cur_dataset.fields = self.fields
-      
+       
         if self.data_hook is not None:
             self.cur_dataset.examples = self.data_hook( self.cur_dataset.examples )
 
@@ -228,41 +231,48 @@ def train_model(model, fields, optim, data_type, model_opt):
     print('\nStart training...')
     print(' * number of epochs: %d, starting from Epoch %d' %
           (opt.epochs + 1 - opt.start_epoch, opt.start_epoch))
+    print(' * number of portions: %d, starting from portion %d ' %
+          (opt.train_portions + 1 - opt.start_portion, opt.start_portion))
     print(' * batch size: %d' % opt.batch_size)
-    print('pswap {}; pdrop {}; pinsert {}; reverse src {}; reverse tgt {}; reverse order {}' \
-          .format(opt.pswap, opt.pdrop, opt.pinsert, opt.reverse_src, opt.reverse_tgt, opt.reverse_order))
+    print('pswap {}; pdrop {}; pinsert {}; reverse src {}'.format(opt.pswap, opt.pdrop, opt.pinsert, opt.reverse_src))
+    
+    if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src > 0:
+        noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src)
+        data_hook = noiser.noise_examples 
+    else:
+        data_hook = None
 
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
 
-        if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src + opt.reverse_tgt + opt.reverse_order > 0:
-            noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, \
-                                   opt.reverse_src, opt.reverse_tgt, opt.reverse_order)
-            data_hook = noiser.noise_examples 
-        else:
-            data_hook = None
+        for portion in range(opt.start_portion, opt.train_portions+1):
 
-        # 1. Train for one epoch on the training set.
-        train_iter = make_dataset_iter(lazily_load_dataset("train"),
-                                       fields, opt, data_hook=data_hook)
-        train_stats = trainer.train(train_iter, epoch, report_func)
-        print('Train perplexity: %g' % train_stats.ppl())
-        print('Train accuracy: %g' % train_stats.accuracy())
+            # 1. Train for one epoch on the training set.
+            train_iter = make_dataset_iter(lazily_load_dataset("train", portion, opt.train_portions),
+                                           fields, opt, data_hook=data_hook)
+            train_stats = trainer.train(train_iter, epoch, report_func)
+            print('Train perplexity: %g' % train_stats.ppl())
+            print('Train accuracy: %g' % train_stats.accuracy())
 
-        # 2. Validate on the validation set.
-        if opt.reverse_src + opt.reverse_tgt + opt.reverse_order > 0:
-            valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt, opt.reverse_order)
-            valid_data_hook = valid_noiser.noise_examples
-        else:
-            valid_data_hook = None
+            # 2. Validate on the validation set.
+            if opt.reverse_src > 0:
+                valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src)
+                valid_data_hook = noiser.noise_examples 
+            else:
+                valid_data_hook = None
+            
+            valid_iter = make_dataset_iter(lazily_load_dataset("valid"),
+                                           fields, opt,
+                                           is_train=False,
+                                           data_hook=valid_data_hook)
+            valid_stats = trainer.validate(valid_iter)
+            print('Validation perplexity: %g' % valid_stats.ppl())
+            print('Validation accuracy: %g' % valid_stats.accuracy())
 
-        valid_iter = make_dataset_iter(lazily_load_dataset("valid"),
-                                       fields, opt,
-                                       is_train=False, data_hook=valid_data_hook)
-        valid_stats = trainer.validate(valid_iter)
-        print('Validation perplexity: %g' % valid_stats.ppl())
-        print('Validation accuracy: %g' % valid_stats.accuracy())
-
+            # 5. Drop a checkpoint if needed.
+            if epoch >= opt.start_checkpoint_at:
+                trainer.drop_checkpoint(model_opt, epoch, fields, valid_stats, train_portion=portion)
+        
         # 3. Log to remote server.
         if opt.exp_host:
             train_stats.log("train", experiment, optim.lr)
@@ -273,11 +283,7 @@ def train_model(model, fields, optim, data_type, model_opt):
 
         # 4. Update the learning rate
         trainer.epoch_step(valid_stats.ppl(), epoch)
-
-        # 5. Drop a checkpoint if needed.
-        if epoch >= opt.start_checkpoint_at:
-            trainer.drop_checkpoint(model_opt, epoch, fields, valid_stats)
-
+        
 
 def check_save_model_path():
     save_model_path = os.path.abspath(opt.save_model)
@@ -300,7 +306,7 @@ def tally_parameters(model):
     print('decoder: ', dec)
 
 
-def lazily_load_dataset(corpus_type):
+def lazily_load_dataset(corpus_type, portion=1, train_portions=1):
     """
     Dataset generator. Don't do extra stuff here, like printing,
     because they will be postponed to the first loading time.
@@ -320,6 +326,16 @@ def lazily_load_dataset(corpus_type):
 
     # Sort the glob output by file name (by increasing indexes).
     pts = sorted(glob.glob(opt.data + '.' + corpus_type + '.[0-9]*.pt'))
+    if corpus_type == 'train' and train_portions > 1:
+        total = len(pts)
+        cnt = total // train_portions
+        start = cnt*(portion-1)
+        end = cnt*portion
+        #import pdb; pdb.set_trace()
+        if portion == train_portions:
+            pts = pts[start:]
+        else:
+            pts = pts[start:end]
     if pts:
         for pt in pts:
             yield lazy_dataset_loader(pt, corpus_type)
@@ -331,21 +347,9 @@ def lazily_load_dataset(corpus_type):
 
 def load_fields(dataset, data_type, checkpoint):
     if checkpoint is not None:
-        if opt.train_from:
-            print('Loading vocab from checkpoint at %s.' % opt.train_from)
-            fields = onmt.io.load_fields_from_vocab(
-                checkpoint['vocab'], data_type)
-        else:
-            print('Loading source vocab from checkpoint at %s.' % opt.init_encoder)
-            print('Loading target vocab from data at %s.' % (opt.data + '.vocab.pt'))
-            # source vocab
-            src_vocab = checkpoint['vocab'][0]
-            # target vocab
-            tgt_vocab = torch.load(opt.data + '.vocab.pt')[1]
-
-            vocab = [ src_vocab, tgt_vocab ]
-            fields = onmt.io.load_fields_from_vocab(
-                vocab, data_type)
+        print('Loading vocab from checkpoint at %s.' % opt.train_from)
+        fields = onmt.io.load_fields_from_vocab(
+            checkpoint['vocab'], data_type)
     else:
         fields = onmt.io.load_fields_from_vocab(
             torch.load(opt.data + '.vocab.pt'), data_type)
@@ -372,10 +376,10 @@ def collect_report_features(fields):
         print(' * tgt feature %d size = %d' % (j, len(fields[feat].vocab)))
 
 
-def build_model(model_opt, opt, fields, checkpoint, rev_checkpoint):
+def build_model(model_opt, opt, fields, checkpoint):
     print('Building model...')
     model = onmt.ModelConstructor.make_base_model(model_opt, fields,
-                                                  use_gpu(opt), checkpoint, opt.init_encoder, rev_checkpoint, opt.top_layer)
+                                                  use_gpu(opt), checkpoint)
     if len(opt.gpuid) > 1:
         print('Multi gpu training: ', opt.gpuid)
         model = nn.DataParallel(model, device_ids=opt.gpuid, dim=1)
@@ -410,7 +414,6 @@ def build_optim(model, checkpoint):
 
 def main():
     # Load checkpoint if we resume from a previous training.
-    rev_checkpoint = None
     if opt.train_from:
         print('Loading checkpoint from %s' % opt.train_from)
         checkpoint = torch.load(opt.train_from,
@@ -418,14 +421,10 @@ def main():
         model_opt = checkpoint['opt']
         # I don't like reassigning attributes of opt: it's not clear.
         opt.start_epoch = checkpoint['epoch'] + 1
-    elif opt.init_encoder != "":
-        print('Loading initial weights from %s' % opt.init_encoder)
-        checkpoint = torch.load(opt.init_encoder,
-                                map_location=lambda storage, loc: storage)
-        model_opt = opt
-        if opt.init_encoder_reverse != "":
-            rev_checkpoint = torch.load(opt.init_encoder_reverse,
-                                    map_location=lambda storage, loc: storage)
+        if 'train_portion' in checkpoint:
+            opt.start_portion = (checkpoint['train_portion'] + 1) % opt.train_portions
+        else:
+            opt.start_portion = 1
     else:
         checkpoint = None
         model_opt = opt
@@ -447,15 +446,12 @@ def main():
     collect_report_features(fields)
 
     # Build model.
-    model = build_model(model_opt, opt, fields, checkpoint, rev_checkpoint)
+    model = build_model(model_opt, opt, fields, checkpoint)
     tally_parameters(model)
     check_save_model_path()
 
     # Build optimizer.
-    if opt.train_from:
-        optim = build_optim(model, checkpoint)
-    else:
-        optim = build_optim(model, None)
+    optim = build_optim(model, checkpoint)
 
     # Do training.
     train_model(model, fields, optim, data_type, model_opt)
