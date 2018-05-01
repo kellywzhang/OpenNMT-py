@@ -522,6 +522,8 @@ def eval_opts(parser):
                        help="Which layer to evaluate")
     group.add_argument('-random_init', default=0, type=int,
                        help="Random initialization of parameters")
+    group.add_argument('-bias_zero', default=0, type=int,
+                       help="Random init bias zero")
     group.add_argument('-id_word_shift', default=0, type=int,
                        help="identity prediction word shift")
     group.add_argument('-eval_portion', default=-1, type=int,
