@@ -253,10 +253,12 @@ def train_model(model, fields, optim, data_type, model_opt):
     print(' * number of portions: %d, starting from portion %d ' %
           (opt.train_portions, opt.start_portion))
     print(' * batch size: %d' % opt.batch_size)
-    print('pswap {}; pdrop {}; pinsert {}; reverse src {}'.format(opt.pswap, opt.pdrop, opt.pinsert, opt.reverse_src))
+    print('pswap {}; pdrop {}; pinsert {}; reverse src {}; reverse tgt {}; reverse order {}' \
+          .format(opt.pswap, opt.pdrop, opt.pinsert, opt.reverse_src, opt.reverse_tgt, opt.reverse_order))
     
-    if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src + opt.reverse_tgt > 0:
-        noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt)
+    if opt.pswap + opt.pdrop + opt.pinsert + opt.reverse_src + opt.reverse_tgt + opt.reverse_order > 0:
+        noiser = SequenceNoise(opt.pswap, opt.pdrop, opt.pinsert, fields["src"].vocab, \
+                               opt.reverse_src, opt.reverse_tgt, opt.reverse_order)
         data_hook = noiser.noise_examples 
     else:
         data_hook = None
@@ -299,8 +301,8 @@ def train_model(model, fields, optim, data_type, model_opt):
             print('Train accuracy: %g' % train_stats.accuracy())
 
             # 2. Validate on the validation set.
-            if opt.reverse_src + opt.reverse_tgt > 0:
-                valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt)
+            if opt.reverse_src + opt.reverse_tgt + opt.reverse_order > 0:
+                valid_noiser = SequenceNoise(0, 0, 0, fields["src"].vocab, opt.reverse_src, opt.reverse_tgt, opt.reverse_order)
                 valid_data_hook = valid_noiser.noise_examples 
             else:
                 valid_data_hook = None
